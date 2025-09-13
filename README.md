@@ -5,6 +5,9 @@ Domingo (UASD)</small>
 El Tali
 2025-09-13
 
+Versión HTML (quizá más legible),
+[aquí](https://geomorfologia-master.github.io/geomorfometria-con-srtm-30-m-R-grass/README.html)
+
 # Fecha/hora de entrega
 
 **Ver portal de la asignatura**

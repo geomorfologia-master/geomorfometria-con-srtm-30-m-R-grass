@@ -29,7 +29,7 @@ knitr::opts_chunk$set(
   fig.retina = 4)
 ```
 
-```{r, include=F}
+```{r, eval=T, include=F}
 output_format <- knitr::opts_knit$get("rmarkdown.pandoc.to")
 repo_url <- system("git config --get remote.origin.url", intern = TRUE)
 repo_name <- sub(".git$", "", basename(repo_url))
@@ -38,7 +38,7 @@ rmd_filename <- tools::file_path_sans_ext(basename(knitr::current_input()))
 github_pages_url <- paste0("https://", org_name, ".github.io/", repo_name, "/", rmd_filename, ".html")
 ```
 
-```{r, results='asis', echo=F}
+```{r, eval=T, results='asis', echo=F}
 if (grepl('gfm', output_format)) {
   cat('Versión HTML (quizá más legible), [aquí](', github_pages_url, ')\n', sep = '')
 } else if (output_format == 'latex') {
