@@ -1,1 +1,529 @@
-# geomorfometria-con-srtm-30-m-R-grass
+Práctica de aula 02 (PA02). Geomorfometría con SRTM 30 m (R y GRASS
+GIS)<small><br>Geomorfología (GEO-114)<br>Universidad Autónoma de Santo
+Domingo (UASD)</small>
+================
+El Tali
+2025-09-13
+
+# Fecha/hora de entrega
+
+**Ver portal de la asignatura**
+
+# Presentación
+
+Esta práctica propone **10 ejercicios independientes** (elige **uno**),
+cada uno realizable en **~60 min**. **Es obligatorio resolver cada
+ejercicio por las dos rutas: en R y en GRASS GIS** (y comparar
+resultados). Todos se basan en el **DEM SRTM 30 m** (≈1 arc-sec).
+Alternativamente puedes usar el **ALOS PALSAR 12.5 m** o el **DTM del
+IGN 8 m**, pero mantén la misma **proyección y unidad** en todo el
+flujo. Este es el enlace del Earth Explorer del USGS para descargar el
+SRTM 30 m, donde deberás crearte una cuenta:
+<https://earthexplorer.usgs.gov/> (aquí te explican cómo descargarlo:
+<https://www.youtube.com/watch?v=OJMe-vbi5ck>). Por otro lado, aquí te
+explican cómo descargar el modelo de ALOS PALSAR:
+<https://www.youtube.com/watch?v=L9SFNxcwlec>, y desde aquí puedes los
+DTM del IGN: <https://descargas.ign.gob.do/mdt/25000>
+
+Los temas siguen el repertorio de **geomorfometría** descrito por Hengl
+& Reuter (eds.): preparación de DEM, parámetros locales y regionales,
+redes de drenaje, visibilidad, hipsometría, índices de humedad, etc.
+
+> **Convenciones en GRASS**. Se utiliza la estructura *database →
+> location → mapset* y la nomenclatura de módulos (`r.*` ráster, `v.*`
+> vector, `g.*` gestión). Consulta
+> <https://grass.osgeo.org/grass-stable/manuals/grass_database.html>.
+
+------------------------------------------------------------------------
+
+# Objetivos
+
+- Trabajar con el **SRTM 30 m** (o alternativos) para derivar parámetros
+  geomorfométricos locales y regionales.
+- Practicar flujos de **preparación del DEM** (recorte, reproyección,
+  limpieza básica).
+- Poner en práctica módulos clave de **GRASS GIS** (`r.slope.aspect`,
+  `r.param.scale`, `r.watershed`, `r.relief`, `r.viewshed`, `r.topidx`)
+  y funciones análogas en **R** (`terra::terrain`, `terra::viewshed`,
+  etc.).
+- **Comparar** resultados entre R y GRASS y discutir diferencias.
+
+------------------------------------------------------------------------
+
+# Requisitos y materiales
+
+- R ≥ 4.2 con paquetes: `terra (≥ 1.8-60)`, `rgrass (≥ 0.5-1)`,
+  `exactextractr` (opcional).
+
+  - `terra` aporta `terrain()`, `shade()` y **`viewshed()`**.
+  - `rgrass` permite invocar GRASS desde R.
+
+- **GRASS GIS ≥ 8** en modo texto (Bash). En RStudio Server, usa la
+  pestaña **Terminal**.
+
+- Un DEM en GeoTIFF (SRTM/ALOS/DTM IGN). **Descárgalo y recórtalo
+  primero en tu PC (QGIS)** antes de subirlo. **No** subas DEM de más
+  **50 MB** al servidor de programación.
+
+------------------------------------------------------------------------
+
+# Estructura de trabajo (resumen)
+
+1.  **Datos/AOI**: define un AOI pequeño para trabajar rápido.
+2.  **Elige 1 ejercicio** (sección *Ejercicios*).
+3.  **Resuélvelo dos veces**: *Ruta A (R)* **y** *Ruta B (GRASS)*.
+4.  **Entrega**:
+
+- Un breve ensayo ilustrado (usando figuras y tablas que puedas obtener
+  de tus propios análisis), que contenga el siguiente guión desarrollado
+  (mini-artículo científico): introducción, método, resultados y
+  discusión (a esto se le suele llamar “estructura IMRaD).
+- En la sección de métodos, puedes dar detalles sobre el área de interes
+  (rectángulo delimitador de tu área, o AOI, de *area of interest*),
+  proyección usada, resolución. También puedes incluir los parámetros
+  usados en los algoritmos y su justificación (p. ej., umbral de
+  acumulación).
+- En discusión puedes mencionar posibles implicaciones e interpretación,
+  limitaciones y mejoras posibles.
+- Cada una de estas secciones debe contene un mínimo de dos párrafos
+  cada una, y el contenido debe apegarse a lo que, en principio,
+  contienen dichas secciones en un artículo científico. Es importante
+  que si todavía no has visto artículos, te fijes en la estructura de
+  los mismos buscando ejemplos y usando una IA como tutora.
+- Productos generados, integrados en un comprimido. Estos pueden ser
+  GeoTIFF/GPKG o salidas gráficas (tipo PNG, JPGG) con resultados
+  principales de **ambas rutas** (p. ej., `slope_rad.tif`,
+  `hillshade.tif`, `streams_v.gpkg`, `viewshed.tif`).
+
+5.  Este preprint te podría resultar útil:
+    <https://preprints.scielo.org/index.php/scielo/preprint/view/7056>
+6.  Usa también el libro de Hengl & Reuter (eds.). (2009).
+    Geomorphometry: Concepts, Software, Applications.
+
+------------------------------------------------------------------------
+
+# Consejos y notas
+
+- **Unidades**: usa proyección **métrica** para métricas dependientes de
+  distancia/área (TWI, viewshed).
+- **Drenaje**: `r.watershed` es robusto; si aparecen sumideros espurios,
+  prueba suavizado suave o ajusta el umbral.
+- **Integración R–GRASS**: con `rgrass` puedes mantener todo el flujo en
+  R.
+
+------------------------------------------------------------------------
+
+# Antes de empezar
+
+## Descarga y recortad tu DEM
+
+Necesitarás un DEM, que puede ser el **SRTM 30 m**, ALOS PALSAR o DTM
+del IGN, en GeoTIFF para **recortarlo** y subirlo al servidor de
+programación. Descárgalo del servicio que elijas a tu PC, y luego
+recórtalo con QGIS en tu PC antes de subirlo al servidor. No subas
+modelos de más de 50 MB, porque te resultará muy difícil procesarlos y
+sobrecargarás el servidor.
+
+## Comprobar entorno y crear carpeta de salida
+
+``` r
+# Ejecuta estos bloques en tu sesión de R (no en Knit)
+dir.create("salidas", showWarnings = FALSE)
+
+pkgs <- c("terra", "rgrass")
+ins <- pkgs[!pkgs %in% rownames(installed.packages())]
+if (length(ins)) install.packages(ins)
+
+library(terra)
+library(rgrass)
+
+# Detectar GISBASE de GRASS
+gisBase <- Sys.getenv("GISBASE")
+if (gisBase == "") gisBase <- tryCatch(system("grass --config path", intern = TRUE), error = function(e) "")
+if (gisBase == "") stop("No se detecta GRASS. Verifica instalación y variable GISBASE.")
+```
+
+## Crea tu LOCATION en UTM (o proyectada) e importa el DEM
+
+> **Importante**: para índices como **TWI** y **viewshed** se recomienda
+> trabajar en proyección **plana** (p. ej., UTM en metros). Elige la
+> zona UTM de tu AOI (ej.: Santo Domingo → **EPSG:32619**). Ajusta rutas
+> a tu *home*.
+
+``` bash
+# Ajusta a tu contexto
+export DIR=$(pwd)
+export GISDBASE="$DIR/grassdata"
+export LOC="srtm_utm"           # usa tu zona UTM real, p. ej. 32619
+export EPSG="32619"
+mkdir -p "$GISDBASE"
+
+# Crear LOCATION por EPSG y MAPSET de trabajo
+grass -c EPSG:${EPSG} -e "$GISDBASE/$LOC"
+grass "$GISDBASE/$LOC/PERMANENT" --exec g.mapset -c mapset=alumno01
+
+# Importar DEM ya recortado en el servidor
+# Asume que subiste un GeoTIFF 'srtm.tif' al directorio actual
+grass "$GISDBASE/$LOC/alumno01" --exec r.in.gdal input="$PWD/srtm.tif" output=srtm30m --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec g.region raster=srtm30m -p
+```
+
+## Carga tu DEM en R (proyectado)
+
+``` r
+library(terra)
+# Ruta a tu DEM en el servidor
+dem <- rast("srtm.tif")              # si tu GeoTIFF ya está en UTM
+# Si estuviera en lat/long y necesitas proyectar a UTM:
+# dem <- project(rast("srtm_ll.tif"), "EPSG:32619", method = "bilinear")
+
+# Ejemplo de AOI: con caja (xmin, xmax, ymin, ymax)
+# Sustituye con tus coordenadas UTM
+# aoi <- ext(353000, 360000, 2090000, 2096000)
+# dem_aoi <- crop(dem, aoi)
+# writeRaster(dem_aoi, "salidas/dem_utm.tif", overwrite=TRUE)
+```
+
+------------------------------------------------------------------------
+
+# Ejercicios (elige uno)
+
+Cada ejercicio contiene **Ruta A (R)** y **Ruta B (GRASS)**. **Debes
+hacer ambas rutas** y **comparar** resultados.
+
+------------------------------------------------------------------------
+
+## Ejercicio 1 — Preparación del DEM (clip, reproyección, suavizado)
+
+**Propósito.** Dejar un DEM listo para análisis (recorte a AOI,
+comprobar proyección **métrica**, suavizado opcional).
+
+### Ruta A — R
+
+``` r
+library(terra)
+dem <- rast("srtm.tif")  # en UTM (m)
+# Definir AOI (elige una opción):
+# 1) Caja
+# aoi <- ext(353000, 360000, 2090000, 2096000)
+# dem_aoi <- crop(dem, aoi)
+# 2) Polígono (GeoPackage) con capa 'aoi'
+# aoi <- vect("aoi.gpkg", layer = "aoi")
+# dem_aoi <- crop(dem, aoi, mask = TRUE)
+
+# (Opcional) suavizado 3x3 para reducir micro-ruido
+w <- matrix(1, 3, 3); w <- w/sum(w)
+dem_smooth <- focal(dem, w = w, na.policy = "omit")
+
+writeRaster(dem,        "salidas/dem_utm.tif",    overwrite=TRUE)
+writeRaster(dem_smooth, "salidas/dem_smooth.tif", overwrite=TRUE)
+```
+
+### Ruta B — GRASS
+
+``` bash
+# Confirmar región al DEM y (opcional) suavizar 3x3
+grass "$GISDBASE/$LOC/alumno01" --exec g.region raster=srtm30m -p
+grass "$GISDBASE/$LOC/alumno01" --exec r.neighbors input=srtm30m output=dem_smooth size=3 method=average --overwrite
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 2 — Pendiente, aspecto y sombreado (hillshade)
+
+**Propósito.** Derivar **pendiente**/**aspecto** y un sombreado que
+realce el relieve.
+
+### Ruta A — R
+
+``` r
+library(terra)
+dem <- rast("salidas/dem_utm.tif")
+slp  <- terrain(dem, v = "slope",  unit = "radians")
+asp  <- terrain(dem, v = "aspect", unit = "radians")
+hs   <- shade(slope = slp, aspect = asp, angle = 45, direction = 315)
+writeRaster(slp, "salidas/slope_rad.tif",   overwrite=TRUE)
+writeRaster(asp, "salidas/aspect_rad.tif",  overwrite=TRUE)
+writeRaster(hs,  "salidas/hillshade.tif",   overwrite=TRUE)
+```
+
+### Ruta B — GRASS
+
+``` bash
+# Pendiente/aspecto en grados
+grass "$GISDBASE/$LOC/alumno01" --exec r.slope.aspect elevation=srtm30m slope=slope aspect=aspect format=degrees --overwrite
+# Hillshade estable con r.relief (equivalente a hillshade)
+grass "$GISDBASE/$LOC/alumno01" --exec r.relief input=srtm30m output=hillshade altitude=45 azimuth=315 --overwrite
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 3 — Northness y Eastness (componentes del aspecto)
+
+**Propósito.** Transformar aspecto en **northness = cos(aspect)** y
+**eastness = sin(aspect)**.
+
+### Ruta A — R
+
+``` r
+library(terra)
+asp <- rast("salidas/aspect_rad.tif")
+northness <- cos(asp); eastness <- sin(asp)
+writeRaster(northness, "salidas/northness.tif", overwrite=TRUE)
+writeRaster(eastness,  "salidas/eastness.tif",  overwrite=TRUE)
+```
+
+### Ruta B — GRASS
+
+``` bash
+# Convertir a radianes y calcular componentes
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "aspect_rad = aspect * (pi()/180.0)" --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "northness = cos(aspect_rad)" --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "eastness  = sin(aspect_rad)" --overwrite
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 4 — Rugosidad local (TRI aproximado) y roughness
+
+**Propósito.** Medir **textura topográfica** local.
+
+### Ruta A — R
+
+``` r
+library(terra)
+dem <- rast("salidas/dem_utm.tif")
+tri <- terrain(dem, v = "TRI")         # 3x3 por defecto
+rfh <- terrain(dem, v = "roughness")   # (max - min) en 3x3
+writeRaster(tri, "salidas/tri.tif",        overwrite=TRUE)
+writeRaster(rfh, "salidas/roughness.tif",  overwrite=TRUE)
+```
+
+### Ruta B — GRASS (sin add-ons)
+
+``` bash
+# Roughness = max - min en ventana 5x5
+grass "$GISDBASE/$LOC/alumno01" --exec r.neighbors input=srtm30m output=max5 size=5 method=maximum --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.neighbors input=srtm30m output=min5 size=5 method=minimum --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "rough5 = max5 - min5" --overwrite
+
+# TRI (aprox. Riley) = |elev - media vecindad| en 3x3
+grass "$GISDBASE/$LOC/alumno01" --exec r.neighbors input=srtm30m output=mean3 size=3 method=average --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "tri3 = abs(srtm30m - mean3)" --overwrite
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 5 — TPI y clasificación simple de formas del terreno
+
+**Propósito.** Calcular **TPI** y clasificar formas (cumbre, ladera,
+valle) con umbrales sencillos.
+
+### Ruta A — R
+
+``` r
+library(terra)
+dem <- rast("salidas/dem_utm.tif")
+# TPI 3x3 integrado en terra
+tpi3  <- terrain(dem, v = "TPI")
+# TPI a escala 11x11 como elev - media(11x11)
+w11   <- matrix(1, 11, 11); w11 <- w11/sum(w11)
+tpi11 <- dem - focal(dem, w = w11, na.policy = "omit")
+
+# Clasificación (ajusta umbrales a tu relieve)
+tpi <- tpi11
+m   <- c(-Inf, -5, 1,   -5, 5, 2,    5, Inf, 3) # 1=valle, 2=ladera, 3=cumbre
+rcl <- matrix(m, ncol=3, byrow=TRUE)
+forms <- classify(tpi, rcl)
+
+writeRaster(tpi3,  "salidas/tpi3.tif",        overwrite=TRUE)
+writeRaster(tpi11, "salidas/tpi11.tif",       overwrite=TRUE)
+writeRaster(forms, "salidas/formas_simple.tif", overwrite=TRUE)
+```
+
+### Ruta B — GRASS
+
+``` bash
+# TPI a 11x11: elev - media(11x11)
+grass "$GISDBASE/$LOC/alumno01" --exec r.neighbors input=srtm30m output=mean11 size=11 method=average --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "tpi11 = srtm30m - mean11" --overwrite
+# Clasificación con umbrales (ajusta a tu zona)
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "form = if(tpi11 < -5, 1, if(tpi11 > 5, 3, 2))" --overwrite
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 6 — Curvas hipsométricas (AOI o subcuencas)
+
+**Propósito.** Resumir distribución de áreas por elevación y el **índice
+hipsométrico**.
+
+### Ruta A — R
+
+``` r
+library(terra)
+dem <- rast("salidas/dem_utm.tif")   # proyectado en m
+brk <- seq(floor(global(dem, "min", na.rm=TRUE)[1,1]),
+           ceiling(global(dem, "max", na.rm=TRUE)[1,1]), by = 25)
+cls <- classify(dem, cbind(brk[-length(brk)], brk[-1], 1:(length(brk)-1)))
+ft  <- as.data.frame(freq(cls, useNA = "no"))
+colnames(ft) <- c("bin","n")
+px_area <- prod(res(dem))       # m^2 por celda en proyección métrica
+ft$elev_mid <- (brk[-length(brk)] + brk[-1]) / 2
+ft$area_m2  <- ft$n * px_area
+ft$cumA     <- cumsum(ft$area_m2)
+ft$Arel     <- ft$cumA / sum(ft$area_m2)
+ft$Erel     <- (ft$elev_mid - min(brk)) / diff(range(brk))
+write.csv(ft, "salidas/hipsometria.csv", row.names = FALSE)
+```
+
+### Ruta B — GRASS
+
+``` bash
+# Tabla de frecuencias de elevación y área por clase (usa unidades de la proyección)
+grass "$GISDBASE/$LOC/alumno01" --exec r.stats -an input=srtm30m > salidas/elev_area.txt
+# Alternativa: r.report para clases de elevación
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 7 — Red de drenaje desde el DEM
+
+**Propósito.** Obtener **acumulación de flujo** y **red de drenaje**
+umbralizada.
+
+### Ruta A — R + rgrass
+
+``` r
+library(rgrass)
+initGRASS(gisBase = gisBase,
+          gisDbase = file.path(Sys.getenv("HOME"), "grassdata"),
+          location = "srtm_utm", mapset = "alumno01", override = TRUE)
+
+execGRASS("g.region", raster = "srtm30m")
+execGRASS("r.watershed",
+          parameters = list(elevation = "srtm30m",
+                            accumulation = "accum",
+                            drainage = "drain",
+                            stream = "streams",
+                            threshold = 2000),
+          flags = c("overwrite"))
+execGRASS("r.thin", parameters = list(input = "streams", output = "streams_thin"), flags = c("overwrite"))
+execGRASS("r.to.vect", parameters = list(input = "streams_thin", output = "streams_v", type = "line"), flags = c("overwrite"))
+
+# Traer acumulación a R (opcional)
+acc  <- read_RAST("accum")
+```
+
+### Ruta B — GRASS
+
+``` bash
+grass "$GISDBASE/$LOC/alumno01" --exec r.watershed elevation=srtm30m accumulation=accum drainage=drain stream=streams threshold=2000 --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.thin input=streams output=streams_thin --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.to.vect input=streams_thin output=streams_v type=line --overwrite
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 8 — Delimitación de cuenca desde un punto de salida
+
+**Propósito.** Delinear la **cuenca vertiente** de un vertedero
+(coordenadas conocidas en tu LOCATION).
+
+### Ruta A — R + rgrass
+
+``` r
+initGRASS(gisBase = gisBase,
+          gisDbase = file.path(Sys.getenv("HOME"), "grassdata"),
+          location = "srtm_utm", mapset = "alumno01", override = TRUE)
+# Punto de salida (UTM)
+out_x <- 353800; out_y <- 2092100  # reemplaza por tus coords
+execGRASS("r.water.outlet",
+          parameters = list(input = "drain",
+                            coordinates = paste(out_x, out_y, sep=","),
+                            output = "basin"),
+          flags = c("overwrite"))
+# Opcional: leer a R
+basin <- read_RAST("basin")
+```
+
+### Ruta B — GRASS
+
+``` bash
+# Cargar un CSV con el punto de salida
+printf "x|y\n353800|2092100\n" > salidas/outlet.csv
+
+grass "$GISDBASE/$LOC/alumno01" --exec v.in.ascii input=salidas/outlet.csv output=outlet separator=pipe x=1 y=2 --overwrite
+# Delinear cuenca usando la dirección de flujo 'drain'
+grass "$GISDBASE/$LOC/alumno01" --exec r.water.outlet input=drain coordinates=353800,2092100 output=basin --overwrite
+```
+
+------------------------------------------------------------------------
+
+## Ejercicio 9 — Topographic Wetness Index (TWI)
+
+**Propósito.** Calcular **TWI = ln(a / tanβ)**, con *a* el **área de
+contribución específica** (m por unidad de contorno) y *β* la pendiente
+en **radianes**.
+
+### Ruta A — R + rgrass
+
+``` r
+initGRASS(gisBase = gisBase,
+          gisDbase = file.path(Sys.getenv("HOME"), "grassdata"),
+          location = "srtm_utm", mapset = "alumno01", override = TRUE)
+# Pendiente en radianes
+execGRASS("r.slope.aspect", parameters = list(elevation="srtm30m", slope="slp_rad", format="radians"), flags = c("overwrite"))
+# Acumulación en celdas
+execGRASS("r.watershed", parameters = list(elevation="srtm30m", accumulation="acc_cells"), flags = c("overwrite"))
+# Tamaño de celda promedio (m)
+execGRASS("r.mapcalc", parameters = list(expression = "cell = (ewres() + nsres())/2.0"), flags = c("overwrite"))
+# Área específica (m) ≈ (acc + 1) * tamaño_celda
+execGRASS("r.mapcalc", parameters = list(expression = "sca = (acc_cells + 1) * cell"), flags = c("overwrite"))
+# TWI
+execGRASS("r.mapcalc", parameters = list(expression = "twi = log( sca / tan(slp_rad) )"), flags = c("overwrite"))
+# Opcional: usar r.topidx directamente (si está disponible):
+# execGRASS("r.topidx", parameters = list(input="srtm30m", output="twi"), flags = c("overwrite"))
+```
+
+### Ruta B — GRASS
+
+``` bash
+# Idéntico flujo en CLI
+grass "$GISDBASE/$LOC/alumno01" --exec r.slope.aspect elevation=srtm30m slope=slp_rad format=radians --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.watershed elevation=srtm30m accumulation=acc_cells --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "cell = (ewres() + nsres())/2.0" --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "sca = (acc_cells + 1) * cell" --overwrite
+grass "$GISDBASE/$LOC/alumno01" --exec r.mapcalc "twi = log( sca / tan(slp_rad) )" --overwrite
+# Alternativa directa (si tu GRASS incluye el módulo):
+# grass "$GISDBASE/$LOC/alumno01" --exec r.topidx input=srtm30m output=twi --overwrite
+```
+
+> **Nota**: TWI es sensible a depresiones/noise. Considera suavizado
+> ligero previo o preprocesos hidrológicos.
+
+------------------------------------------------------------------------
+
+## Ejercicio 10 — Viewshed (línea de visión) desde un observador
+
+**Propósito.** Calcular visibilidad desde un punto (torre/antena).
+**Requiere CRS plano** (m).
+
+### Ruta A — R (con `terra::viewshed()`)
+
+``` r
+library(terra)
+dem <- rast("salidas/dem_utm.tif")
+# Coordenadas del observador (m) dentro del AOI
+obs <- c(xmin(dem) + 2000, ymin(dem) + 2000)
+vs  <- viewshed(dem, loc = obs, observer = 10, target = 0,
+                curvcoef = 6/7, output = "yes/no")
+writeRaster(vs, "salidas/viewshed.tif", overwrite=TRUE)
+```
+
+### Ruta B — GRASS (`r.viewshed`)
+
+``` bash
+# Observador: coord X,Y (UTM) y altura (m)
+grass "$GISDBASE/$LOC/alumno01" --exec r.viewshed input=srtm30m output=viewshed coordinates=353800,2092100 observer_elevation=10 -b --overwrite
+```
